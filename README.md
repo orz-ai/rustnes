@@ -83,4 +83,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Add support for save states
 - [ ] Optimize performance
 - [ ] Add GUI for configuration and ROM loading
-```
