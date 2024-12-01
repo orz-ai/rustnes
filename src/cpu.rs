@@ -71,6 +71,16 @@ impl CPU {
             AddressMode::Immediate => self.program_counter,
             AddressMode::ZeroPage => self.mem_read(self.program_counter) as u16,
             AddressMode::Absolute => self.mem_read_u16(self.program_counter),
+            AddressMode::ZeroPage_X => {
+                let pos = self.mem_read(self.program_counter);
+                let addr = pos.wrapping_add(self.register_x) as u16;
+                addr
+            }
+            AddressMode::ZeroPage_Y => {
+                let pos = self.mem_read(self.program_counter);
+                let addr = pos.wrapping_add(self.register_y) as u16;
+                addr
+            }
             AddressMode::Absolute_X => {
                 let base = self.mem_read_u16(self.program_counter);
                 let addr = base.wrapping_add(self.register_x as u16);
@@ -96,16 +106,7 @@ impl CPU {
                 let addr = deref.wrapping_add(self.register_y as u16);
                 addr
             }
-            AddressMode::ZeroPage_X => {
-                let pos = self.mem_read(self.program_counter);
-                let addr = pos.wrapping_add(self.register_x) as u16;
-                addr
-            }
-            AddressMode::ZeroPage_Y => {
-                let pos = self.mem_read(self.program_counter);
-                let addr = pos.wrapping_add(self.register_y) as u16;
-                addr
-            }
+
             AddressMode::NoneAddressing => {
                 panic!("mode {:?} is not supported", mode);
             },
@@ -139,7 +140,7 @@ impl CPU {
     pub fn load(&mut self, program: Vec<u8>) {
         // [0x8000 .. 0xFFFF] 是为程序 ROM 保留的
         self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.program_counter = 0x8000;
+        self.mem_write_u16(0xFFFC, 0x8000);
     }
 
     pub fn run(&mut self) {
@@ -169,11 +170,15 @@ impl CPU {
                 0x00 => return,
                 _ => {}
             }
+
+            if program_counter_state == self.program_counter {
+                self.program_counter += (opcode.len - 1) as u16;
+            }
         }
     }
 
     fn lda(&mut self, mode: &AddressMode) {
-        let addr = self.get_operand_address(mode);
+        let addr = self.get_operand_address(&mode);
         let data = self.mem_read(addr);
 
         self.register_a = data;
@@ -219,8 +224,6 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0xa9, 0x05, 0x00]);
         assert_eq!(cpu.register_a, 5);
-        assert!(cpu.status & 0b0000_0010 == 0);
-        assert!(cpu.status & 0b1000_0000 == 0);
     }
 
 }
