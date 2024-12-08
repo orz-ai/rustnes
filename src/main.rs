@@ -2,6 +2,8 @@ mod cpu;
 mod opcodes;
 mod bus;
 mod cartridge;
+mod trace;
+mod ppu;
 
 #[macro_use]
 extern crate lazy_static;
@@ -16,6 +18,7 @@ use sdl2::pixels::{Color, PixelFormatEnum};
 use crate::bus::Bus;
 use crate::cartridge::Rom;
 use crate::cpu::{Mem, CPU};
+use crate::trace::trace;
 
 fn color(byte: u8) -> Color {
     match byte {
@@ -98,7 +101,7 @@ fn main() {
 
 
     // load the game
-    let bytes: Vec<u8> = std::fs::read("super_mario.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("nestest.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
     let bus = Bus::new(rom);
     let mut cpu = CPU::new(bus);
@@ -109,17 +112,20 @@ fn main() {
 
     // run the game cycles
     cpu.run_with_callback(move |cpu| {
-        handle_user_input(cpu, &mut event_pump);
 
-        cpu.mem_write(0xfe, rng.gen_range(1, 16));
-        if read_screen_state(cpu, &mut screen_state) {
-            texture.update(None, &screen_state, 32 * 3).unwrap();
+        println!("{}", trace(&cpu))
 
-            canvas.copy(&texture, None, None).unwrap();
-
-            canvas.present();
-        }
-
-        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
+        // handle_user_input(cpu, &mut event_pump);
+        //
+        // cpu.mem_write(0xfe, rng.gen_range(1, 16));
+        // if read_screen_state(cpu, &mut screen_state) {
+        //     texture.update(None, &screen_state, 32 * 3).unwrap();
+        //
+        //     canvas.copy(&texture, None, None).unwrap();
+        //
+        //     canvas.present();
+        // }
+        //
+        // ::std::thread::sleep(std::time::Duration::new(0, 70_000));
     })
 }
