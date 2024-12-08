@@ -1,6 +1,7 @@
 use crate::opcodes;
 use bitflags::bitflags;
 use std::collections::HashMap;
+use crate::bus::Bus;
 
 bitflags! {
     pub struct CpuFlags: u8 {
@@ -25,7 +26,8 @@ pub struct CPU {
     pub status: CpuFlags,
     pub program_counter: u16,
     pub stack_pointer: u8,
-    memory: [u8; 0xFFFF],
+    pub bus: Bus
+
 }
 
 #[derive(Debug)]
@@ -64,16 +66,24 @@ pub trait Mem {
 
 impl Mem for CPU {
     fn mem_read(&self, address: u16) -> u8 {
-        self.memory[address as usize]
+        self.bus.mem_read(address)
     }
 
     fn mem_write(&mut self, address: u16, data: u8) {
-        self.memory[address as usize] = data;
+        self.bus.mem_write(address, data)
+    }
+
+    fn mem_read_u16(&self, pos: u16) -> u16 {
+        self.bus.mem_read_u16(pos)
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        self.bus.mem_write_u16(pos, data)
     }
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(bus: Bus) -> Self {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -81,7 +91,7 @@ impl CPU {
             stack_pointer: STACK_RESET,
             program_counter: 0,
             status: CpuFlags::from_bits_truncate(0b100100),
-            memory: [0; 0xFFFF],
+            bus,
         }
     }
 
@@ -163,16 +173,11 @@ impl CPU {
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        for i in 0..program.len() {
+            self.mem_write(0x0600 + i as u16, program[i]);
+        }
+
         self.mem_write_u16(0xFFFC, 0x0600);
-    }
-
-    pub fn mem_read(&self, address: u16) -> u8 {
-        self.memory[address as usize]
-    }
-
-    pub fn mem_write(&mut self, address: u16, data: u8) {
-        self.memory[address as usize] = data;
     }
 
     fn add_to_register_a(&mut self, data: u8) {

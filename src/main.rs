@@ -1,5 +1,6 @@
 mod cpu;
 mod opcodes;
+mod bus;
 
 #[macro_use]
 extern crate lazy_static;
@@ -11,6 +12,7 @@ use rand::Rng;
 use sdl2::event::Event;
 use sdl2::EventPump;
 use sdl2::pixels::{Color, PixelFormatEnum};
+use crate::bus::Bus;
 use crate::cpu::{Mem, CPU};
 
 fn color(byte: u8) -> Color {
@@ -118,9 +120,11 @@ fn main() {
     ];
 
     // load the game
-    let mut cpu = CPU::new();
+    let bus = Bus::new();
+    let mut cpu = CPU::new(bus);
     cpu.load(game_code);
     cpu.reset();
+    cpu.program_counter = 0x0600;
 
     let mut screen_state = [0u8; 32 * 3 * 32];
     let mut rng = rand::thread_rng();
