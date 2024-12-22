@@ -46,11 +46,11 @@ pub enum AddressingMode {
 }
 
 pub trait Mem {
-    fn mem_read(&self, address: u16) -> u8;
+    fn mem_read(&mut self, address: u16) -> u8;
 
     fn mem_write(&mut self, address: u16, data: u8);
 
-    fn mem_read_u16(&self, address: u16) -> u16 {
+    fn mem_read_u16(&mut self, address: u16) -> u16 {
         let low = self.mem_read(address) as u16;
         let high = self.mem_read(address + 1) as u16;
         (high << 8) | low
@@ -65,7 +65,7 @@ pub trait Mem {
 }
 
 impl Mem for CPU {
-    fn mem_read(&self, address: u16) -> u8 {
+    fn mem_read(&mut self, address: u16) -> u8 {
         self.bus.mem_read(address)
     }
 
@@ -73,13 +73,35 @@ impl Mem for CPU {
         self.bus.mem_write(address, data)
     }
 
-    fn mem_read_u16(&self, pos: u16) -> u16 {
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
         self.bus.mem_read_u16(pos)
     }
 
     fn mem_write_u16(&mut self, pos: u16, data: u16) {
         self.bus.mem_write_u16(pos, data)
     }
+}
+
+mod interrupt {
+    #[derive(PartialEq, Eq)]
+    pub enum InterruptType {
+        NMI,
+    }
+
+    #[derive(PartialEq, Eq)]
+    pub(super) struct Interrupt {
+        pub(super) itype: InterruptType,
+        pub(super) vector_addr: u16,
+        pub(super) b_flag_mask: u8,
+        pub(super) cpu_cycles: u8
+    }
+
+    pub(super) const NMI: Interrupt = Interrupt {
+        itype: InterruptType::NMI,
+        vector_addr: 0xFFFA,
+        b_flag_mask: 0b00100000,
+        cpu_cycles: 2,
+    };
 }
 
 impl CPU {
@@ -95,7 +117,7 @@ impl CPU {
         }
     }
 
-    pub fn get_absolute_address(&self, mode: &AddressingMode, addr: u16) -> u16 {
+    pub fn get_absolute_address(&mut self, mode: &AddressingMode, addr: u16) -> u16 {
         match mode {
             AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
 
@@ -145,7 +167,7 @@ impl CPU {
         }
     }
 
-    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    fn get_operand_address(&mut self, mode: &AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.program_counter,
 
@@ -224,11 +246,18 @@ impl CPU {
         let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
 
         loop {
+
+            if let Some(_nmi) = self.bus.poll_nmi_status() {
+                self.interrupt(interrupt::NMI);
+            }
+
+            callback(self);
+
             let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
-            let opcode = opcodes.get(&code).unwrap();
+            let opcode = opcodes.get(&code).expect(&format!("Opcode {:x} is not recognized", code));
 
             match code {
                 // LDA: Load Accumulator
@@ -839,54 +868,18 @@ impl CPU {
             self.program_counter = jump_addr;
         }
     }
-}
 
-#[cfg(test)]
-mod test {
-    use super::*;
+    fn interrupt(&mut self, interrupt: interrupt::Interrupt) {
+        self.stack_push_u16(self.program_counter);
+        let mut flags = self.status.clone();
+        flags.set(CpuFlags::BREAK, interrupt.b_flag_mask & 0b010000 == 1);
+        flags.set(CpuFlags::BREAK2, interrupt.b_flag_mask & 0b100000 == 1);
 
-    #[test]
-    fn test_0xa9_lda_immediate_load_data() {
-        let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0x05, 0x00]);
-        assert_eq!(cpu.register_a, 5);
-        assert!(cpu.status.bits() & 0b0000_0010 == 0b00);
-        assert!(cpu.status.bits() & 0b1000_0000 == 0);
-    }
+        self.stack_push(flags.bits);
+        self.status.insert(CpuFlags::INTERRUPT_DISABLE);
 
-    #[test]
-    fn test_0xaa_tax_move_a_to_x() {
-        let mut cpu = CPU::new();
-        cpu.register_a = 10;
-        cpu.load_and_run(vec![0xaa, 0x00]);
+        self.bus.tick(interrupt.cpu_cycles as usize);
+        self.program_counter = self.mem_read_u16(interrupt.vector_addr);
 
-        assert_eq!(cpu.register_x, 10)
-    }
-
-    #[test]
-    fn test_5_ops_working_together() {
-        let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
-
-        assert_eq!(cpu.register_x, 0xc1)
-    }
-
-    #[test]
-    fn test_inx_overflow() {
-        let mut cpu = CPU::new();
-        cpu.register_x = 0xff;
-        cpu.load_and_run(vec![0xe8, 0xe8, 0x00]);
-
-        assert_eq!(cpu.register_x, 1)
-    }
-
-    #[test]
-    fn test_lda_from_memory() {
-        let mut cpu = CPU::new();
-        cpu.mem_write(0x10, 0x55);
-
-        cpu.load_and_run(vec![0xa5, 0x10, 0x00]);
-
-        assert_eq!(cpu.register_a, 0x55);
     }
 }

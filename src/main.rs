@@ -34,7 +34,7 @@ fn color(byte: u8) -> Color {
     }
 }
 
-fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 3 * 32]) -> bool {
+fn read_screen_state(cpu: &mut CPU, frame: &mut [u8; 32 * 3 * 32]) -> bool {
     let mut frame_idx = 0;
     let mut update = false;
     for i in 0x0200..0x600 {
@@ -113,19 +113,19 @@ fn main() {
     // run the game cycles
     cpu.run_with_callback(move |cpu| {
 
-        println!("{}", trace(&cpu))
+        // println!("{}", trace(cpu))
 
-        // handle_user_input(cpu, &mut event_pump);
-        //
-        // cpu.mem_write(0xfe, rng.gen_range(1, 16));
-        // if read_screen_state(cpu, &mut screen_state) {
-        //     texture.update(None, &screen_state, 32 * 3).unwrap();
-        //
-        //     canvas.copy(&texture, None, None).unwrap();
-        //
-        //     canvas.present();
-        // }
-        //
-        // ::std::thread::sleep(std::time::Duration::new(0, 70_000));
+        handle_user_input(cpu, &mut event_pump);
+
+        cpu.mem_write(0xfe, rng.gen_range(1, 16));
+        if read_screen_state(cpu, &mut screen_state) {
+            texture.update(None, &screen_state, 32 * 3).unwrap();
+
+            canvas.copy(&texture, None, None).unwrap();
+
+            canvas.present();
+        }
+
+        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
     })
 }
