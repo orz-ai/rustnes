@@ -4,6 +4,7 @@ mod bus;
 mod cartridge;
 mod trace;
 mod ppu;
+mod render;
 
 #[macro_use]
 extern crate lazy_static;
@@ -14,10 +15,13 @@ extern crate bitflags;
 use rand::Rng;
 use sdl2::event::Event;
 use sdl2::EventPump;
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
 use crate::bus::Bus;
 use crate::cartridge::Rom;
 use crate::cpu::{Mem, CPU};
+use crate::ppu::NesPPU;
+use crate::render::frame::Frame;
 use crate::trace::trace;
 
 fn color(byte: u8) -> Color {
@@ -84,9 +88,8 @@ fn main() {
     // init sdl2
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
-
     let window = video_subsystem
-        .window("Snake game", (32.0 * 10.0) as u32, (32.0 * 10.0) as u32)
+        .window("Tile viewer", (256.0 * 3.0) as u32, (240.0 * 3.0) as u32)
         .position_centered()
         .build()
         .unwrap();
@@ -97,35 +100,38 @@ fn main() {
 
     let creator = canvas.texture_creator();
     let mut texture = creator
-        .create_texture_target(PixelFormatEnum::RGB24, 32, 32).unwrap();
+        .create_texture_target(PixelFormatEnum::RGB24, 256, 240).unwrap();
 
 
     // load the game
-    let bytes: Vec<u8> = std::fs::read("nestest.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("pacman.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
-    let bus = Bus::new(rom);
-    let mut cpu = CPU::new(bus);
-    cpu.reset();
 
-    let mut screen_state = [0u8; 32 * 3 * 32];
-    let mut rng = rand::thread_rng();
+    let mut frame = Frame::new();
 
-    // run the game cycles
-    cpu.run_with_callback(move |cpu| {
+    let bus = Bus::new(rom, move |ppu: &NesPPU| {
+        render::render(ppu, &mut frame);
+        texture.update(None, &frame.data, 256 * 3).unwrap();
 
-        // println!("{}", trace(cpu))
+        canvas.copy(&texture, None, None).unwrap();
+        canvas.present();
 
-        handle_user_input(cpu, &mut event_pump);
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit {..} | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => std::process::exit(0),
 
-        cpu.mem_write(0xfe, rng.gen_range(1, 16));
-        if read_screen_state(cpu, &mut screen_state) {
-            texture.update(None, &screen_state, 32 * 3).unwrap();
-
-            canvas.copy(&texture, None, None).unwrap();
-
-            canvas.present();
+                _ => {
+                    // do nothing
+                }
+            }
         }
 
-        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
-    })
+    });
+
+    let mut cpu = CPU::new(bus);
+    cpu.reset();
+    cpu.run();
 }

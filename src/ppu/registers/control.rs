@@ -35,7 +35,7 @@ impl ControlRegister {
         }
     }
 
-    pub fn sprite_pattern_address(&self) -> u16 {
+    pub fn sprite_pattern_addr(&self) -> u16 {
         if self.contains(ControlRegister::SPRITE_PATTERN_ADDR) {
             0x0000
         } else {
@@ -43,7 +43,7 @@ impl ControlRegister {
         }
     }
 
-    pub fn background_pattern_address(&self) -> u16 {
+    pub fn bknd_pattern_addr(&self) -> u16 {
         if self.contains(ControlRegister::BACKROUND_PATTERN_ADDR) {
             0x0000
         } else {
