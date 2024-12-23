@@ -39,7 +39,7 @@ impl MaskRegister {
         self.contains(MaskRegister::SHOW_BACKGROUND)
     }
 
-    pub fn show_sprite(&self) -> bool {
+    pub fn show_sprites(&self) -> bool {
         self.contains(MaskRegister::SHOW_SPRITES)
     }
 
@@ -48,19 +48,17 @@ impl MaskRegister {
         if self.contains(MaskRegister::EMPHASISE_RED) {
             result.push(Color::Red);
         }
-
         if self.contains(MaskRegister::EMPHASISE_BLUE) {
             result.push(Color::Blue);
         }
-
         if self.contains(MaskRegister::EMPHASISE_GREEN) {
-            result.push(Color::Red);
+            result.push(Color::Green);
         }
 
         result
     }
 
-    pub fn update(&mut self, value: u8) {
-        self.bits = value;
+    pub fn update(&mut self, data: u8) {
+        self.bits = data;
     }
 }

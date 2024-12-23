@@ -18,8 +18,8 @@ impl AddrRegister {
         self.value.1 = (value & 0xff) as u8;
     }
 
-    pub(crate) fn get(&self) -> u16 {
-        (self.value.0 as u16) << 8 | self.value.1 as u16
+    pub fn get(&self) -> u16 {
+        ((self.value.0 as u16) << 8 ) | (self.value.1 as u16)
     }
 
     pub fn update(&mut self, value: u8) {
@@ -32,6 +32,8 @@ impl AddrRegister {
         if self.get() > 0x3fff {
             self.set(self.get() & 0b11111111111111);
         }
+
+        self.hi_ptr = !self.hi_ptr;
     }
 
     pub fn increment(&mut self, inc: u8) {

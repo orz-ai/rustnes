@@ -1,5 +1,5 @@
 bitflags! {
-    pub struct StatusRegister: u8 {
+        pub struct StatusRegister: u8 {
         const NOTUSED          = 0b00000001;
         const NOTUSED2         = 0b00000010;
         const NOTUSED3         = 0b00000100;
@@ -24,6 +24,10 @@ impl StatusRegister {
         self.set(StatusRegister::SPRITE_ZERO_HIT, status);
     }
 
+    pub fn set_sprite_overflow(&mut self, status: bool) {
+        self.set(StatusRegister::SPRITE_OVERFLOW, status);
+    }
+
     pub fn reset_vblank_status(&mut self) {
         self.remove(StatusRegister::VBLANK_STARTED);
     }
@@ -33,6 +37,6 @@ impl StatusRegister {
     }
 
     pub fn snapshot(&self) -> u8 {
-        self.bits()
+        self.bits
     }
 }

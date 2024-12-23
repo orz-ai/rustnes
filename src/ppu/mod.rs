@@ -104,7 +104,7 @@ impl NesPPU {
             self.cycles -= 341;
             self.scanline += 1;
 
-            if self.scanline >= 241 {
+            if self.scanline == 241 {
                 self.status.set_vblank_status(true);
                 self.status.set_sprite_zero_hit(false);
 
@@ -127,7 +127,7 @@ impl NesPPU {
         false
     }
 
-    fn poll_nmi_interrupt(&mut self) -> Option<u8> {
+    pub(crate) fn poll_nmi_interrupt(&mut self) -> Option<u8> {
         self.nmi_interrupt.take()
     }
 }
